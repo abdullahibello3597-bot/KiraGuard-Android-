@@ -1,0 +1,242 @@
+name: Build KiraGuard APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create Android project
+        run: |
+          mkdir -p app/src/main/java/com/kiraguard/app
+          mkdir -p app/src/main/res/layout
+          mkdir -p app/src/main/res/values
+          mkdir -p app/src/main/assets
+
+          cat > settings.gradle <<'EOF'
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+
+          rootProject.name = "KiraGuard"
+          include(":app")
+          EOF
+
+          cat > build.gradle <<'EOF'
+          plugins {
+              id 'com.android.application' version '8.6.1' apply false
+          }
+          EOF
+
+          cat > gradle.properties <<'EOF'
+          org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+          android.useAndroidX=true
+          EOF
+
+          cat > app/build.gradle <<'EOF'
+          plugins {
+              id 'com.android.application'
+          }
+
+          android {
+              namespace 'com.kiraguard.app'
+              compileSdk 35
+
+              defaultConfig {
+                  applicationId 'com.kiraguard.app'
+                  minSdk 23
+                  targetSdk 35
+                  versionCode 1
+                  versionName '1.0'
+              }
+          }
+
+          dependencies {
+              implementation 'androidx.appcompat:appcompat:1.7.0'
+          }
+          EOF
+
+          cat > app/src/main/AndroidManifest.xml <<'EOF'
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <uses-permission android:name="android.permission.INTERNET"/>
+              <application
+                  android:theme="@style/AppTheme"
+                  android:label="KiraGuard"
+                  android:allowBackup="true">
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN"/>
+                          <category android:name="android.intent.category.LAUNCHER"/>
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOF
+
+          cat > app/src/main/res/values/styles.xml <<'EOF'
+          <resources>
+              <style name="AppTheme" parent="Theme.AppCompat.NoActionBar">
+                  <item name="android:fontFamily">sans</item>
+                  <item name="android:colorAccent">#00D9A5</item>
+                  <item name="android:navigationBarColor">#07131F</item>
+                  <item name="android:statusBarColor">#07131F</item>
+              </style>
+          </resources>
+          EOF
+
+          cat > app/src/main/res/layout/activity_main.xml <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <WebView xmlns:android="http://schemas.android.com/apk/res/android"
+              android:id="@+id/webview"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"/>
+          EOF
+
+          cat > app/src/main/java/com/kiraguard/app/MainActivity.java <<'EOF'
+          package com.kiraguard.app;
+
+          import android.os.Bundle;
+          import android.webkit.WebSettings;
+          import android.webkit.WebView;
+          import androidx.appcompat.app.AppCompatActivity;
+
+          public class MainActivity extends AppCompatActivity {
+              @Override
+              protected void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  setContentView(R.layout.activity_main);
+
+                  WebView web = findViewById(R.id.webview);
+                  WebSettings settings = web.getSettings();
+                  settings.setJavaScriptEnabled(true);
+                  settings.setDomStorageEnabled(true);
+                  web.loadUrl("file:///android_asset/index.html");
+              }
+          }
+          EOF
+
+          cat > app/src/main/assets/index.html <<'EOF'
+          <!DOCTYPE html>
+          <html>
+          <head>
+          <meta name="viewport" content="width=device-width,initial-scale=1">
+          <title>KiraGuard</title>
+          <style>
+          *{box-sizing:border-box}
+          body{margin:0;background:#07131f;color:#fff;font-family:Arial,sans-serif}
+          .app{max-width:430px;margin:auto;min-height:100vh;padding:22px}
+          .logo{font-size:25px;font-weight:bold;color:#00d9a5}
+          .tag{color:#9eb0bf;font-size:13px;margin-top:4px}
+          h1{font-size:31px;margin:35px 0 8px}
+          p{color:#a9b8c4;line-height:1.5}
+          .search{display:flex;gap:8px;margin-top:25px}
+          input{flex:1;padding:15px;border:1px solid #29404f;border-radius:12px;background:#102333;color:white;font-size:16px}
+          button{border:0;border-radius:12px;background:#00d9a5;color:#04131a;font-weight:bold;padding:0 18px}
+          .card{background:#102333;border:1px solid #1e394a;border-radius:16px;padding:18px;margin-top:18px}
+          .title{font-weight:bold;font-size:17px}
+          .small{color:#91a5b3;font-size:13px;margin-top:7px}
+          .green{color:#00d9a5}
+          .danger{background:#17303b;color:#fff;width:100%;padding:14px;margin-top:15px}
+          .nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:#0b1d2a;border-top:1px solid #203747;display:flex;justify-content:space-around;padding:14px 5px}
+          .nav span{font-size:12px;color:#8fa5b3}
+          </style>
+          </head>
+          <body>
+          <div class="app">
+            <div class="logo">KiraGuard 🛡️</div>
+            <div class="tag">Know who's calling. Stay protected.</div>
+
+            <h1>Protect every call.</h1>
+            <p>Search phone numbers and check community reports for suspicious calls.</p>
+
+            <div class="search">
+              <input id="number" placeholder="Enter phone number">
+              <button onclick="searchNumber()">Search</button>
+            </div>
+
+            <div id="result" class="card">
+              <div class="title">Ready to search</div>
+              <div class="small">Enter a phone number above.</div>
+            </div>
+
+            <div class="card">
+              <div class="title">🛡️ KiraGuard</div>
+              <div class="small">Protected users: <b class="green">1,000+</b></div>
+              <div class="small">Community spam alerts: <b class="green">24</b></div>
+            </div>
+
+            <div class="card">
+              <div class="title">Recent calls</div>
+              <div class="small">John Doe — 0803 123 4567 — <span class="green">Known</span></div>
+              <div class="small">Unknown Caller — Private number — Caution</div>
+              <div class="small">ABC Logistics — 0702 555 8899 — Business</div>
+            </div>
+
+            <button class="danger" onclick="reportNumber()">🚩 Report a number</button>
+          </div>
+
+          <div class="nav">
+            <span>Home</span><span>Search</span><span>Report</span><span>Settings</span>
+          </div>
+
+          <script>
+          function searchNumber(){
+            const n=document.getElementById('number').value.trim();
+            const r=document.getElementById('result');
+            if(!n){
+              r.innerHTML='<div class="title">Enter a number</div><div class="small">Please type a phone number to search.</div>';
+              return;
+            }
+            r.innerHTML='<div class="title">Search result</div><div class="small">'+n+'</div><div class="small green">No verified identity found yet.</div>';
+          }
+
+          function reportNumber(){
+            const n=document.getElementById('number').value.trim();
+            if(!n){alert('Enter a phone number first.');return;}
+            alert('Report received for '+n+'. Thank you for helping the community.');
+          }
+          </script>
+          </body>
+          </html>
+          EOF
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Build APK
+        run: gradle assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: KiraGuard-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
